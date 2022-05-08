@@ -71,7 +71,7 @@ object NodeInfoUtils {
                 val nodeInfo = if (node.index >= 0) matchNodes.getOrNull(node.index) else matchNodes.randomOrNull()
                 nodeInfo ?: return false
 
-                clickNode(nodeInfo)
+                clickNode(service, nodeInfo)
             }
             EHandle.CLICK_SCREEN -> {
                 val x = node.coordinate.split(",").getOrNull(0)?.toFloatOrNull()?.toInt() ?: return false
@@ -180,9 +180,36 @@ object NodeInfoUtils {
     }
 
     /**
+     * 点击屏幕Node
+     */
+    fun clickScreen(service: AccessibilityService, node: AccessibilityNodeInfo?): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            val rect = Rect()
+            node?.getBoundsInScreen(rect)
+            val x = rect.exactCenterX()
+            val y = rect.exactCenterY()
+
+            val builder = GestureDescription.Builder()
+            val path = Path()
+            path.moveTo(x, y)
+            path.lineTo(x, y)
+            builder.addStroke(GestureDescription.StrokeDescription(path, 1, 1))
+            service.dispatchGesture(builder.build(), object : AccessibilityService.GestureResultCallback() {
+                override fun onCancelled(gestureDescription: GestureDescription) {
+                    super.onCancelled(gestureDescription)
+                }
+
+                override fun onCompleted(gestureDescription: GestureDescription) {
+                    super.onCompleted(gestureDescription)
+                }
+            }, null)
+        } else false
+    }
+
+    /**
      * 点击控件 - 事件点击
      */
-    fun clickNode(node: AccessibilityNodeInfo?): Boolean {
+    fun clickNode(service: AccessibilityService,node: AccessibilityNodeInfo?): Boolean {
         node ?: return false
 
         val queue = ArrayDeque<AccessibilityNodeInfo>()
@@ -193,6 +220,8 @@ object NodeInfoUtils {
 
             if (temp.isClickable) {
                 return temp.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            } else {
+                return clickScreen(service,temp)
             }
 
             temp.parent?.let {
